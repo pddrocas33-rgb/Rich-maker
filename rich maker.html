@@ -1,0 +1,355 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rich Maker Pro - Football Analytics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #00ff88; --secondary: #00d4ff; --bg: #0f172a;
+            --card: #1e293b; --text: #f8fafc; --danger: #ff4d4d; --accent: #6366f1;
+        }
+
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.5; }
+        .container { max-width: 1100px; margin: auto; }
+        
+        .step-card { 
+            background: var(--card); padding: 25px; border-radius: 16px; 
+            margin-bottom: 25px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+        }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .hidden { display: none; }
+        
+        label { display: block; margin-bottom: 5px; font-size: 0.9em; color: #94a3b8; }
+        input, select { 
+            background: #0f172a; border: 1px solid #334155; color: white; 
+            padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box; margin-bottom: 15px;
+        }
+
+        button { 
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: #000; border: none; padding: 12px 20px; border-radius: 8px; 
+            font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase;
+        }
+        
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-test { background: var(--accent); color: white; }
+        .btn-pdf { background: #ec4899; color: white; }
+        .btn-outline { background: transparent; border: 1px solid #444; color: #ccc; padding: 5px 10px; font-size: 0.8em; }
+
+        .history-list { margin-top: 10px; background: #0f172a; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto; }
+        .history-item { font-size: 0.85em; padding: 10px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        
+        #resultadoFinal { background: #1e293b; border: 2px solid var(--primary); padding: 30px; border-radius: 20px; text-align: center; margin: 30px 0; }
+        
+        .confidence-container { background: #0f172a; border-radius: 20px; height: 24px; margin: 20px 0; overflow: hidden; border: 1px solid #334155; }
+        .confidence-bar { height: 100%; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .high { background: linear-gradient(90deg, #22c55e, #4ade80); } 
+        .medium { background: linear-gradient(90deg, #eab308, #fde047); } 
+        .low { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+        .market-badge { background: var(--primary); color: #000; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 0.8em; }
+        .log-container { background: #0f172a; padding: 15px; border-radius: 12px; margin-top: 15px; }
+
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header style="text-align:center; margin-bottom:40px;">
+        <h1 style="color:var(--primary); margin:0; font-size: 2.5em; letter-spacing: 2px;">RICH MAKER</h1>
+        <p style="color:var(--secondary); font-weight: 300;">Advanced Football Prediction Algorithm</p>
+        <button class="btn-danger" style="margin-top:10px;" onclick="resetGeral()">Limpar Todos os Dados</button>
+    </header>
+
+    <div id="passo1" class="step-card">
+        <h2>1. Configuração do Jogo</h2>
+        <div class="grid">
+            <div>
+                <label>Equipa da Casa (A)</label>
+                <input type="text" id="nomeA" placeholder="Ex: Benfica">
+                <label>Posição Atual na Liga</label>
+                <input type="number" id="posA" placeholder="1-20">
+            </div>
+            <div>
+                <label>Equipa Visitante (B)</label>
+                <input type="text" id="nomeB" placeholder="Ex: Porto">
+                <label>Posição Atual na Liga</label>
+                <input type="number" id="posB" placeholder="1-20">
+            </div>
+        </div>
+        <div style="display:flex; gap:15px;">
+            <button onclick="confirmarEquipas()">Confirmar Equipas</button>
+            <button class="btn-test" onclick="gerarSimulacaoTeste()">Simular Dados de Teste</button>
+        </div>
+    </div>
+
+    <div id="passo2" class="step-card hidden">
+        <h2>2. Histórico de Confrontos (Últimos 10 jogos)</h2>
+        <div class="grid">
+            <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid #334155;">
+                <h3 id="labelA" style="color:var(--primary); margin-top:0;"></h3>
+                <label>Local do Jogo</label>
+                <select id="localA"><option value="Casa">Jogou em Casa</option><option value="Fora">Jogou Fora</option></select>
+                <label>Golos (Marcados - Sofridos)</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="mA" placeholder="Marcados">
+                    <input type="number" id="sA" placeholder="Sofridos">
+                </div>
+                <label>Posição do Adversário na altura</label>
+                <input type="number" id="pAdvA" placeholder="Ex: 5">
+                <button onclick="addJogo('A')" style="width:100%">Adicionar Evento</button>
+                <div id="listaA" class="history-list"></div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid #334155;">
+                <h3 id="labelB" style="color:var(--secondary); margin-top:0;"></h3>
+                <label>Local do Jogo</label>
+                <select id="localB"><option value="Casa">Jogou em Casa</option><option value="Fora">Jogou Fora</option></select>
+                <label>Golos (Marcados - Sofridos)</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="mB" placeholder="Marcados">
+                    <input type="number" id="sB" placeholder="Sofridos">
+                </div>
+                <label>Posição do Adversário na altura</label>
+                <input type="number" id="pAdvB" placeholder="Ex: 12">
+                <button onclick="addJogo('B')" style="width:100%">Adicionar Evento</button>
+                <div id="listaB" class="history-list"></div>
+            </div>
+        </div>
+        <button style="width:100%; margin-top:30px; font-size:1.2em;" onclick="analisarMercados()">CALCULAR PROBABILIDADES</button>
+    </div>
+
+    <div id="resultadoFinal" class="hidden"></div>
+
+    <div class="step-card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0">Histórico de Sugestões</h2>
+            <button class="btn-pdf" onclick="gerarPDFHistorico()">Exportar PDF Histórico</button>
+        </div>
+        <div id="logSugestoes" class="log-container">
+            <p style="color:#64748b; text-align:center;">Nenhuma sugestão gerada ainda.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let hA = [], hB = [], config = {}, logGlobal = [];
+
+    function confirmarEquipas() {
+        config = {
+            nA: document.getElementById('nomeA').value.toUpperCase(),
+            nB: document.getElementById('nomeB').value.toUpperCase(),
+            pA: parseInt(document.getElementById('posA').value),
+            pB: parseInt(document.getElementById('posB').value)
+        };
+        if(!config.nA || !config.nB || isNaN(config.pA) || isNaN(config.pB)) return alert("Preencha todos os campos do Passo 1!");
+        
+        document.getElementById('labelA').innerText = config.nA;
+        document.getElementById('labelB').innerText = config.nB;
+        document.getElementById('passo1').style.opacity = "0.5";
+        document.getElementById('passo2').classList.remove('hidden');
+        window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+
+    function addJogo(tipo) {
+        const idM = tipo === 'A' ? 'mA' : 'mB';
+        const idS = tipo === 'A' ? 'sA' : 'sB';
+        const idP = tipo === 'A' ? 'pAdvA' : 'pAdvB';
+        
+        const jogo = {
+            local: document.getElementById('local' + tipo).value,
+            m: parseInt(document.getElementById(idM).value),
+            s: parseInt(document.getElementById(idS).value),
+            p: parseInt(document.getElementById(idP).value) || 10
+        };
+
+        if(isNaN(jogo.m) || isNaN(jogo.s)) return alert("Insira os golos!");
+        
+        tipo === 'A' ? hA.unshift(jogo) : hB.unshift(jogo);
+        renderLogs();
+    }
+
+    function eliminarEvento(tipo, index) {
+        tipo === 'A' ? hA.splice(index, 1) : hB.splice(index, 1);
+        renderLogs();
+    }
+
+    function renderLogs() {
+        const build = (lista, tipo) => lista.map((j, i) => `
+            <div class="history-item">
+                <span><b>${j.local}</b> | ${j.m}-${j.s} (Contra: ${j.p}º)</span>
+                <button class="btn-outline btn-danger" onclick="eliminarEvento('${tipo}', ${i})">Remover</button>
+            </div>`).join('');
+        
+        document.getElementById('listaA').innerHTML = build(hA, 'A');
+        document.getElementById('listaB').innerHTML = build(hB, 'B');
+    }
+
+    function analisarMercados() {
+        if(hA.length < 1 || hB.length < 1) return alert("Adicione dados ao histórico de ambas as equipas!");
+
+        // ALGORITMO RICH MAKER
+        const calcRating = (lista, pos) => {
+            let pts = 0;
+            lista.forEach(j => {
+                let base = (j.m > j.s) ? 3 : (j.m === j.s ? 1 : 0);
+                let dificuldade = (21 - j.p) / 10;
+                let bonusLocal = (j.local === 'Fora') ? 1.25 : 1.0;
+                pts += (base + (j.m * 0.4) - (j.s * 0.2)) * dificuldade * bonusLocal;
+            });
+            return (pts / lista.length) + ((21 - pos) / 3);
+        };
+
+        const fA = calcRating(hA, config.pA) * 1.15; // Vantagem Casa
+        const fB = calcRating(hB, config.pB);
+        
+        const probA = (fA / (fA + fB)) * 100;
+        const probB = (fB / (fA + fB)) * 100;
+        const probEmpate = Math.max(15, 30 - Math.abs(probA - probB));
+
+        // Mercados Extra
+        const mediaGTotal = (hA.reduce((a,b)=>a+b.m,0)/hA.length) + (hB.reduce((a,b)=>a+b.m,0)/hB.length);
+        const probOver = Math.min(92, mediaGTotal * 22);
+        const bttsA = hA.filter(j=>j.m>0 && j.s>0).length / hA.length;
+        const bttsB = hB.filter(j=>j.m>0 && j.s>0).length / hB.length;
+        const probBTTS = ((bttsA + bttsB) / 2) * 100;
+
+        // Sugestão Inteligente
+        let sugestaoFinal = "";
+        let confFinal = 0;
+
+        if(probA > 60) { sugestaoFinal = `Vitória ${config.nA}`; confFinal = probA; }
+        else if(probB > 60) { sugestaoFinal = `Vitória ${config.nB}`; confFinal = probB; }
+        else if(probOver > 75) { sugestaoFinal = "Mais de 2.5 Golos"; confFinal = probOver; }
+        else { sugestaoFinal = (probA > probB) ? `1X (${config.nA} ou Empate)` : `X2 (${config.nB} ou Empate)`; confFinal = 65; }
+
+        const res = {
+            id: Date.now(),
+            data: new Date().toLocaleString(),
+            equipaA: config.nA, equipaB: config.nB,
+            sugestao: sugestaoFinal,
+            confianca: confFinal.toFixed(1),
+            mercados: { probA: probA.toFixed(1), probB: probB.toFixed(1), empate: probEmpate.toFixed(1), over: probOver.toFixed(1), btts: probBTTS.toFixed(1) }
+        };
+
+        logGlobal.unshift(res);
+        renderResultado(res);
+        renderHistoricoGlobal();
+    }
+
+    function renderResultado(res) {
+        const div = document.getElementById('resultadoFinal');
+        div.classList.remove('hidden');
+        const classe = res.confianca > 75 ? 'high' : (res.confianca > 60 ? 'medium' : 'low');
+
+        div.innerHTML = `
+            <span class="market-badge">Recomendação Rich Maker</span>
+            <h1 style="margin:15px 0;">${res.equipaA} vs ${res.equipaB}</h1>
+            <h2 style="color:var(--primary); margin-bottom:5px;">${res.sugestao}</h2>
+            
+            <div class="confidence-container"><div class="confidence-bar ${classe}" style="width: ${res.confianca}%"></div></div>
+            <p>Nível de Confiança: ${res.confianca}%</p>
+
+            <div class="grid" style="text-align:left; margin-top:25px; padding-top:20px; border-top:1px solid #334155;">
+                <div>
+                    <b>Probabilidades 1X2</b><br>
+                    ${res.equipaA}: ${res.mercados.probA}%<br>
+                    Empate: ${res.mercados.empate}%<br>
+                    ${res.equipaB}: ${res.mercados.probB}%
+                </div>
+                <div>
+                    <b>Mercados Alternativos</b><br>
+                    Mais 2.5 Golos: ${res.mercados.over}%<br>
+                    Ambas Marcam: ${res.mercados.btts}%
+                </div>
+            </div>
+            <button class="btn-pdf" style="margin-top:25px" onclick="gerarPDFJogo()">Gerar PDF deste Relatório</button>
+        `;
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }
+
+    function renderHistoricoGlobal() {
+        const container = document.getElementById('logSugestoes');
+        if(logGlobal.length === 0) return;
+        container.innerHTML = logGlobal.map(l => `
+            <div class="history-item">
+                <span><b>${l.equipaA} vs ${l.equipaB}</b> -> <span style="color:var(--primary)">${l.sugestao}</span></span>
+                <span>${l.confianca}% | ${l.data}</span>
+            </div>`).join('');
+    }
+
+    function gerarSimulacaoTeste() {
+        document.getElementById('nomeA').value = "Porto";
+        document.getElementById('posA').value = 2;
+        document.getElementById('nomeB').value = "Boavista";
+        document.getElementById('posB').value = 14;
+        confirmarEquipas();
+        hA = [ {local:'Casa', m:4, s:0, p:18}, {local:'Fora', m:2, s:1, p:5}, {local:'Casa', m:1, s:0, p:1} ];
+        hB = [ {local:'Casa', m:1, s:1, p:10}, {local:'Fora', m:0, s:3, p:2}, {local:'Fora', m:1, s:2, p:12} ];
+        renderLogs();
+        alert("Simulação carregada. Clique em Calcular!");
+    }
+
+    function resetGeral() { if(confirm("Deseja apagar todos os dados e reiniciar?")) location.reload(); }
+
+    // GERAÇÃO DE PDF
+    function gerarPDFJogo() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const r = logGlobal[0];
+
+        doc.setFillColor(15, 23, 42); doc.rect(0, 0, 210, 40, 'F');
+        doc.setTextColor(0, 255, 136); doc.setFontSize(22); doc.text("RICH MAKER - RELATÓRIO TÉCNICO", 20, 25);
+        
+        doc.setTextColor(0, 0, 0); doc.setFontSize(14);
+        doc.text(`Confronto: ${r.equipaA} vs ${r.equipaB}`, 20, 50);
+        doc.text(`Sugestão: ${r.sugestao}`, 20, 60);
+        doc.text(`Confiança: ${r.confianca}%`, 20, 70);
+
+        doc.text("Probabilidades Calculadas:", 20, 90);
+        doc.autoTable({
+            startY: 95,
+            head: [['Casa %', 'Empate %', 'Fora %', 'Over 2.5 %', 'BTTS %']],
+            body: [[r.mercados.probA, r.mercados.empate, r.mercados.probB, r.mercados.over, r.mercados.btts]]
+        });
+
+        doc.text(`Histórico Inserido - ${r.equipaA}`, 20, doc.lastAutoTable.finalY + 15);
+        doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Local', 'Resultado', 'Pos. Adversário']],
+            body: hA.map(j => [j.local, `${j.m}-${j.s}`, j.p + "º"])
+        });
+
+        doc.text(`Histórico Inserido - ${r.equipaB}`, 20, doc.lastAutoTable.finalY + 15);
+        doc.autoTable({
+            startY: doc.lastAutoTable.finalY + 20,
+            head: [['Local', 'Resultado', 'Pos. Adversário']],
+            body: hB.map(j => [j.local, `${j.m}-${j.s}`, j.p + "º"])
+        });
+
+        doc.save(`RichMaker_${r.equipaA}_vs_${r.equipaB}.pdf`);
+    }
+
+    function gerarPDFHistorico() {
+        if(logGlobal.length === 0) return alert("Sem histórico para exportar.");
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("RICH MAKER - HISTÓRICO DE SUGESTÕES", 20, 20);
+        doc.autoTable({
+            startY: 30,
+            head: [['Data', 'Jogo', 'Sugestão', 'Confiança']],
+            body: logGlobal.map(l => [l.data, `${l.equipaA} vs ${l.equipaB}`, l.sugestao, l.confianca + "%"])
+        });
+        doc.save("RichMaker_Historico_Sugestoes.pdf");
+    }
+</script>
+
+</body>
+</html>
